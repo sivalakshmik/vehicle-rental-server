@@ -20,20 +20,33 @@ dotenv.config();
 
 const app = express();
 
-
+// ⚠️ Stripe webhook must handle raw body before JSON parsing
 app.post("/api/payments/webhook", express.raw({ type: "application/json" }), (req, res, next) => {
   next();
 });
 
+// ✅ Proper CORS setup
+app.use(
+  cors({
+    origin: [
+      "https://lighthearted-llama-3a8643.netlify.app", // ✅ your frontend domain
+      /\.netlify\.app$/,                              // ✅ allow all Netlify previews
+      "http://localhost:5173",                        // ✅ allow local dev
+    ],
+    credentials: true,
+  })
+);
 
-app.use(cors({
-  origin: process.env.CLIENT_URL || "*",
-  credentials: true,
-}));
+// ✅ Middlewares
 app.use(express.json());
 app.use("/assets", express.static(path.join(__dirname, "assets")));
 
+// ✅ Root route (for testing Render deployment)
+app.get("/", (req, res) => {
+  res.send("✅ Vehicle Rental API is running successfully on Render!");
+});
 
+// ✅ API Routes
 app.use("/api/users", userRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/bookings", bookingRoutes);
@@ -41,12 +54,7 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/reviews", reviewRoutes);
 
-
-app.get("/", (req, res) => {
-  res.send(" Vehicle Rental API is running successfully!");
-});
-
-
+// ✅ MongoDB Connection
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
@@ -57,3 +65,4 @@ mongoose
     });
   })
   .catch((err) => console.error("❌ MongoDB connection error:", err.message));
+
