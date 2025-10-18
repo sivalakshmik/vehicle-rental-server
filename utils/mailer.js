@@ -1,66 +1,55 @@
 import dotenv from "dotenv";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-// 🧩 Ensure environment variables are loaded before anything else
+// 🧩 Load environment variables
 dotenv.config();
 
-// ✅ Create transporter with Gmail or fallback SMTP
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: false, // true for 465
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
+// ✅ Initialize Resend client
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-// 🧠 Verify transporter at startup
-transporter.verify((err, success) => {
-  if (err) {
-    console.error("❌ Mailer connection error:", err.message);
+// 🧠 Verify Resend setup on startup
+(async () => {
+  try {
+    const domains = await resend.domains.list();
+    console.log("✅ Mailer connected successfully (Resend API)");
+  } catch (error) {
+    console.error("❌ Mailer connection error:", error.message);
     console.log("⚙️ Debug Info:", {
-      SMTP_USER: process.env.SMTP_USER || "❌ Missing",
-      SMTP_PASS: process.env.SMTP_PASS ? "✅ Loaded" : "❌ Missing",
+      RESEND_API_KEY: process.env.RESEND_API_KEY ? "✅ Loaded" : "❌ Missing",
     });
-  } else {
-    console.log("✅ Mailer connected successfully");
   }
-});
+})();
 
 /**
- * 📧 Send an email with HTML, text, and optional attachments.
+ * 📧 Send an email using Resend (Render-safe)
  * @param {Object} options
  * @param {string} options.to - recipient email
  * @param {string} options.subject - email subject
  * @param {string} [options.text] - plain text body
  * @param {string} [options.html] - HTML body
- * @param {Array} [options.attachments] - attachments
  */
-export async function sendMail({ to, subject, text, html, attachments }) {
+export async function sendMail({ to, subject, text, html }) {
   try {
-    const msg = {
-      from: process.env.SMTP_FROM || `"Vehicle Rental Pvt. Ltd." <${process.env.SMTP_USER}>`,
+    const fromAddress =
+      process.env.SMTP_FROM || "KVS Vehicle Rental <onboarding@resend.dev>";
+
+    const data = await resend.emails.send({
+      from: fromAddress,
       to,
       subject,
       text,
       html,
-      attachments,
-    };
+    });
 
-    const info = await transporter.sendMail(msg);
-    console.log(`📨 Email sent successfully → ${to} | Message ID: ${info.messageId}`);
+    console.log(`📨 Email sent successfully → ${to} | Message ID: ${data.id}`);
     return true;
   } catch (error) {
     console.error("❌ Email send error:", error.message);
-    if (error.response) console.error("📩 SMTP Response:", error.response);
+    if (error.response) console.error("📩 Resend API Response:", error.response);
     return false;
   }
 }
 
 // 🔁 Compatibility export
 export const sendEmail = sendMail;
-export default transporter;
+export default resend;
