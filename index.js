@@ -29,10 +29,12 @@ app.post("/api/payments/webhook", express.raw({ type: "application/json" }), (re
 app.use(
   cors({
     origin: [
-      "https://lighthearted-llama-3a8643.netlify.app", // ✅ your frontend domain
-      /\.netlify\.app$/,                              // ✅ allow all Netlify previews
-      "http://localhost:5173",                        // ✅ allow local dev
+      "https://lighthearted-llama-3a8643.netlify.app", // Netlify prod
+      /\.netlify\.app$/,                              // Preview builds
+      "http://localhost:5173",                        // Local dev
     ],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
@@ -65,4 +67,5 @@ mongoose
     });
   })
   .catch((err) => console.error("❌ MongoDB connection error:", err.message));
+
 
