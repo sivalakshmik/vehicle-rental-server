@@ -58,7 +58,9 @@ app.use("/api/reviews", reviewRoutes);
 
 // ✅ MongoDB Connection
 mongoose
-  .connect(process.env.MONGO_URI)
+  .connect(process.env.MONGO_URI, {
+    dbName: "VehiclerentalDB", // ✅ Force the correct database
+  })
   .then(() => {
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
@@ -67,5 +69,6 @@ mongoose
     });
   })
   .catch((err) => console.error("❌ MongoDB connection error:", err.message));
+
 
 
