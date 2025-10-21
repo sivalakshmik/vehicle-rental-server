@@ -67,7 +67,14 @@ router.post("/create-session", verifyToken, async (req, res) => {
           quantity: 1,
         },
       ],
-      metadata: { userId: req.userId, vehicleId, startDate, endDate, bookingId },
+     metadata: {
+  userId: req.user.id || req.userId,
+  vehicleId: vehicleId,
+  startDate,
+  endDate,
+  bookingId,
+},
+
       success_url: `${process.env.CLIENT_URL}/payment-success`,
       cancel_url: `${process.env.CLIENT_URL}/payment-cancelled`,
     });
@@ -280,3 +287,4 @@ router.get("/invoice/:paymentId", verifyToken, async (req, res) => {
 });
 
 export default router;
+
