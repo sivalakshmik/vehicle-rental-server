@@ -1,39 +1,30 @@
 // utils/mailer.js
+import { Resend } from "resend";
 import dotenv from "dotenv";
-import sgMail from "@sendgrid/mail";
+
 dotenv.config();
 
-/**
- * Send email using SendGrid API
- * @param {{ to: string, subject: string, text?: string, html?: string }} options
- */
-export async function sendMail({ to, subject, text = "", html = "" }) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  const from = process.env.SMTP_FROM;
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-  if (!apiKey || !from) {
-    console.error("❌ Missing SENDGRID_API_KEY or SMTP_FROM in environment.");
-    return false;
-  }
-
-  sgMail.setApiKey(apiKey);
-
-  const msg = {
-    to,
-    from, // must be verified sender
-    subject,
-    text,
-    html,
-  };
-
+export async function sendMail({ to, subject, html }) {
   try {
-    await sgMail.send(msg);
-    console.log("📧 Email sent successfully via SendGrid →", to);
-    return true;
+    if (!process.env.RESEND_API_KEY) {
+      console.error("❌ Missing RESEND_API_KEY in environment");
+      return;
+    }
+
+    const from = process.env.SMTP_FROM || "Vehicle Rental <noreply@vehiclerental.com>";
+
+    const response = await resend.emails.send({
+      from,
+      to,
+      subject,
+      html,
+    });
+
+    if (response.error) throw response.error;
+    console.log("📧 Email sent successfully via Resend →", to);
   } catch (err) {
-    console.error("❌ SendGrid error:", err.response?.body || err.message);
-    return false;
+    console.error("❌ Resend error:", err);
   }
 }
-
-export default sendMail;
