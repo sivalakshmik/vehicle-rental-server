@@ -1,10 +1,9 @@
-import dotenv from "dotenv";
-dotenv.config();
-
 import express from "express";
 import Stripe from "stripe";
-import PDFDocument from "pdfkit";
+import dotenv from "dotenv";
 import mongoose from "mongoose";
+import PDFDocument from "pdfkit";
+
 import { verifyToken } from "../middleware/authMiddleware.js";
 import Vehicle from "../models/Vehicle.js";
 import Booking from "../models/Booking.js";
@@ -12,40 +11,20 @@ import Payment from "../models/Payment.js";
 import User from "../models/User.js";
 import { sendEmail } from "../utils/mailer.js";
 
+dotenv.config();
+
 const router = express.Router();
-
-// ✅ Stripe setup
-if (!process.env.STRIPE_SECRET_KEY) {
-  console.error("❌ STRIPE_SECRET_KEY missing. Check your .env file.");
-  process.exit(1);
-}
-
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-09-30.clover",
 });
 
-console.log("✅ Stripe initialized");
-
-/* -------------------------------------------
- 🎯 Create Stripe Checkout Session
-------------------------------------------- */
+/* ------------------------------------------------------------------
+ 🎯 1️⃣ Create Stripe Checkout Session
+------------------------------------------------------------------ */
 router.post("/create-session", verifyToken, async (req, res) => {
-  const { vehicleId, startDate, endDate, bookingId } = req.body;
+  const { vehicleId, startDate, endDate } = req.body;
 
   try {
-    const conflict = await Booking.findOne({
-      vehicle: vehicleId,
-      startDate: { $lt: new Date(endDate) },
-      endDate: { $gt: new Date(startDate) },
-      status: { $ne: "cancelled" },
-    });
-
-    if (conflict) {
-      return res.status(409).json({
-        message: "Vehicle already booked for these dates. Choose another slot.",
-      });
-    }
-
     const vehicle = await Vehicle.findById(vehicleId);
     if (!vehicle) return res.status(404).json({ message: "Vehicle not found" });
 
@@ -59,7 +38,6 @@ router.post("/create-session", verifyToken, async (req, res) => {
       vehicleId,
       startDate,
       endDate,
-      bookingId,
     };
 
     console.log("🔐 Authenticated user ID:", req.userId);
@@ -92,16 +70,16 @@ router.post("/create-session", verifyToken, async (req, res) => {
   }
 });
 
-/* -------------------------------------------
- 📦 Stripe Webhook Handler
-------------------------------------------- */
+/* ------------------------------------------------------------------
+ 📦 2️⃣ Stripe Webhook Handler
+------------------------------------------------------------------ */
 export const handleWebhook = async (req, res) => {
   const sig = req.headers["stripe-signature"];
   let event;
 
   try {
     event = stripe.webhooks.constructEvent(
-      req.body,
+      req.body, // raw body buffer
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
@@ -110,24 +88,25 @@ export const handleWebhook = async (req, res) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  console.log("📦 Webhook received:", event.type);
+  console.log("✅ Webhook verified:", event.type);
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-    const { userId, vehicleId, startDate, endDate, bookingId } =
-      session.metadata || {};
-
+    const { userId, vehicleId, startDate, endDate } = session.metadata || {};
     console.log("📦 Metadata received:", session.metadata);
 
     if (!userId || !vehicleId) {
-      console.error("❌ Missing userId or vehicleId in metadata");
-      return res.status(400).send("Missing required metadata");
+      console.error("❌ Missing metadata in session");
+      return res.status(400).send("Missing metadata");
     }
+
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const vehicleObjectId = new mongoose.Types.ObjectId(vehicleId);
 
     try {
       const payment = await Payment.create({
-        user: userId,
-        vehicle: vehicleId,
+        user: userObjectId,
+        vehicle: vehicleObjectId,
         amount: session.amount_total || 0,
         currency: session.currency || "inr",
         status: "completed",
@@ -137,8 +116,8 @@ export const handleWebhook = async (req, res) => {
       });
 
       const booking = await Booking.create({
-        user: userId,
-        vehicle: vehicleId,
+        user: userObjectId,
+        vehicle: vehicleObjectId,
         startDate,
         endDate,
         payment: payment._id,
@@ -147,45 +126,33 @@ export const handleWebhook = async (req, res) => {
 
       console.log("✅ Booking created:", booking._id);
 
-      // 📧 Optional confirmation email
-      const user = await User.findById(userId);
-      const vehicle = await Vehicle.findById(vehicleId);
-
+      const user = await User.findById(userObjectId);
+      const vehicle = await Vehicle.findById(vehicleObjectId);
       if (user && vehicle) {
-        const html = `
-          <h2>Booking Confirmed ✅</h2>
-          <p>Dear ${user.name || user.email},</p>
-          <p>Your booking for <strong>${vehicle.make} ${vehicle.model}</strong> is confirmed.</p>
-          <ul>
-            <li><strong>From:</strong> ${new Date(startDate).toLocaleString()}</li>
-            <li><strong>To:</strong> ${new Date(endDate).toLocaleString()}</li>
-            <li><strong>Total Paid:</strong> ₹${payment.amount / 100}</li>
-          </ul>
-          <p>Thank you for choosing <b>Vehicle Rental!</b></p>
-        `;
-
-        try {
-          await sendEmail({
-            to: user.email,
-            subject: "Booking Confirmed - Vehicle Rental",
-            html,
-          });
-          console.log("📧 Confirmation email sent to", user.email);
-        } catch (mailErr) {
-          console.error("❌ Mailer connection error:", mailErr.message);
-        }
+        await sendEmail({
+          to: user.email,
+          subject: "Booking Confirmed - Vehicle Rental",
+          html: `
+            <h3>Hi ${user.name || "Customer"},</h3>
+            <p>Your booking for <b>${vehicle.make} ${vehicle.model}</b> is confirmed!</p>
+            <p>From: ${new Date(startDate).toLocaleDateString()}<br>
+               To: ${new Date(endDate).toLocaleDateString()}</p>
+            <p>Amount Paid: ₹${(session.amount_total || 0) / 100}</p>
+          `,
+        });
+        console.log("📧 Confirmation email sent to:", user.email);
       }
-    } catch (error) {
-      console.error("❌ Error handling webhook:", error);
+    } catch (err) {
+      console.error("❌ Error saving booking or payment:", err);
     }
   }
 
-  res.status(200).end();
+  res.status(200).send("Webhook received");
 };
 
-/* -------------------------------------------
- 🧾 Get User Payments
-------------------------------------------- */
+/* ------------------------------------------------------------------
+ 🧾 3️⃣ Get User Payments
+------------------------------------------------------------------ */
 router.get("/my", verifyToken, async (req, res) => {
   try {
     const payments = await Payment.find({ user: req.userId }).populate("vehicle");
@@ -195,6 +162,8 @@ router.get("/my", verifyToken, async (req, res) => {
     res.status(500).json({ message: "Unable to retrieve payment history" });
   }
 });
+
+
 
 /* -------------------------------------------
  📄 Generate PDF Invoice
@@ -316,3 +285,4 @@ router.get("/invoice/:paymentId", verifyToken, async (req, res) => {
 });
 
 export default router;
+
