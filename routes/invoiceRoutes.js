@@ -4,7 +4,7 @@ import Booking from "../models/Booking.js";
 import Vehicle from "../models/Vehicle.js";
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
-import { sendMail } from "../utils/mailer.js";
+import sendMail  from "../utils/mailer.js";
 
 const router = express.Router();
 
@@ -160,3 +160,4 @@ router.get("/email/:bookingId", async (req, res) => {
 });
 
 export default router;
+
