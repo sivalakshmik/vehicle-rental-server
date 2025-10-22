@@ -4,6 +4,7 @@ dotenv.config();
 import express from "express";
 import Stripe from "stripe";
 import PDFDocument from "pdfkit";
+import mongoose from "mongoose";
 import { verifyToken } from "../middleware/authMiddleware.js";
 import Vehicle from "../models/Vehicle.js";
 import Booking from "../models/Booking.js";
@@ -110,8 +111,7 @@ router.post("/webhook", async (req, res) => {
   }
 
   console.log("📦 Webhook received:", event.type);
- 
-});
+
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     const { userId, vehicleId, startDate, endDate, bookingId } = session.metadata || {};
@@ -196,8 +196,9 @@ router.post("/webhook", async (req, res) => {
 
   res.status(200).end();
 });
+
 /* -------------------------------------------
- 🧾 3️⃣ Get User Payments
+ 🧾 Get User Payments
 ------------------------------------------- */
 router.get("/my", verifyToken, async (req, res) => {
   try {
@@ -207,6 +208,9 @@ router.get("/my", verifyToken, async (req, res) => {
     console.error("❌ Failed to fetch payments:", error);
     res.status(500).json({ message: "Unable to retrieve payment history" });
   }
+});
+
+export default router;
 });
 
 /* -------------------------------------------
@@ -304,5 +308,6 @@ router.get("/invoice/:paymentId", verifyToken, async (req, res) => {
 });
 
 export default router;
+
 
 
