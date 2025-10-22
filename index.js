@@ -21,9 +21,7 @@ dotenv.config();
 const app = express();
 
 // ⚠️ Stripe webhook must handle raw body before JSON parsing
-app.post("/api/payments/webhook", express.raw({ type: "application/json" }), (req, res, next) => {
-  next();
-});
+app.use("/api/payments/webhook", express.raw({ type: "application/json" }), paymentRoutes);
 
 // ✅ Proper CORS setup
 app.use(
@@ -69,6 +67,7 @@ mongoose
     });
   })
   .catch((err) => console.error("❌ MongoDB connection error:", err.message));
+
 
 
 
