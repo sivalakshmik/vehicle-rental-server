@@ -1,4 +1,3 @@
-// utils/mailer.js
 import { Resend } from "resend";
 import dotenv from "dotenv";
 
@@ -28,3 +27,6 @@ export async function sendMail({ to, subject, html }) {
     console.error("❌ Resend error:", err);
   }
 }
+
+// 👇 Add this line to fix “no default export” error
+export default sendMail;
