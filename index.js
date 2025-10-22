@@ -1,96 +1,71 @@
-
-import path from "path";
-import { fileURLToPath } from "url";
-import dotenv from "dotenv";
 import express from "express";
+import bodyParser from "body-parser";
 import mongoose from "mongoose";
 import cors from "cors";
-import bodyParser from "body-parser";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
-// 🧩 Import routes
 import userRoutes from "./routes/userRoutes.js";
 import vehicleRoutes from "./routes/vehicleRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
-import paymentRouter, { handleWebhook } from "./routes/paymentRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
+import paymentRouter, { handleWebhook } from "./routes/paymentRoutes.js";
 
-// ✅ Initialize environment
 dotenv.config();
-
 const app = express();
 
-// ✅ Setup dirname (for ES modules)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /* ------------------------------------------------------------------
-  1️⃣ STRIPE WEBHOOK — MUST USE RAW BODY BEFORE express.json()
+ ✅ STRIPE WEBHOOK: RAW BODY FIRST (before express.json!)
 ------------------------------------------------------------------ */
 app.post(
   "/api/payments/webhook",
   bodyParser.raw({ type: "application/json" }),
   async (req, res) => {
+    console.log("📦 Stripe webhook received");
     try {
-      console.log("📦 Stripe webhook received");
       await handleWebhook(req, res);
     } catch (err) {
-      console.error("❌ Error handling webhook:", err);
+      console.error("❌ Webhook error:", err.message);
       res.status(500).send("Internal webhook error");
     }
   }
 );
 
 /* ------------------------------------------------------------------
-  2️⃣ NORMAL ROUTES — USE JSON PARSER (AFTER webhook)
+ ✅ NORMAL JSON MIDDLEWARES (AFTER WEBHOOK!)
 ------------------------------------------------------------------ */
-app.use((req, res, next) => {
-  if (req.originalUrl === "/api/payments/webhook") {
-    next(); // skip express.json for Stripe
-  } else {
-    express.json()(req, res, next);
-  }
-});
+app.use(express.json());
+app.use(cors({
+  origin: [
+    "https://kvsvehiclerental.netlify.app",
+    "http://localhost:3000",
+  ],
+  credentials: true,
+}));
 
 /* ------------------------------------------------------------------
-  3️⃣ CORS CONFIGURATION
+ ✅ API ROUTES
 ------------------------------------------------------------------ */
-app.use(
-  cors({
-    origin: [
-      "https://kvsvehiclerental.netlify.app", // ✅ Your deployed frontend
-      "http://localhost:3000",                // ✅ Local dev
-    ],
-    credentials: true,
-  })
-);
-
-/* ------------------------------------------------------------------
-  4️⃣ STATIC FILES (OPTIONAL)
------------------------------------------------------------------- */
-app.use("/assets", express.static(path.join(__dirname, "assets")));
-
-/* ------------------------------------------------------------------
-  5️⃣ API ROUTES
------------------------------------------------------------------- */
-app.get("/", (req, res) => {
-  res.send("✅ Vehicle Rental API is running successfully on Render!");
-});
-
 app.use("/api/users", userRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/bookings", bookingRoutes);
-app.use("/api/payments", paymentRouter); // ✅ Includes create-session, etc.
+app.use("/api/payments", paymentRouter);
 app.use("/api/admin", adminRoutes);
 app.use("/api/reviews", reviewRoutes);
 
+app.get("/", (req, res) => {
+  res.send("✅ Vehicle Rental API is running successfully!");
+});
+
 /* ------------------------------------------------------------------
-  6️⃣ MONGODB CONNECTION
+ ✅ DATABASE CONNECTION
 ------------------------------------------------------------------ */
-mongoose
-  .connect(process.env.MONGO_URI, {
-    dbName: "VehiclerentalDB",
-  })
+mongoose.connect(process.env.MONGO_URI, { dbName: "VehiclerentalDB" })
   .then(() => {
     const PORT = process.env.PORT || 10000;
     app.listen(PORT, () => {
@@ -99,6 +74,4 @@ mongoose
       console.log(`🔗 Webhook endpoint: /api/payments/webhook`);
     });
   })
-  .catch((err) => console.error("❌ MongoDB connection error:", err.message));
-
-export default app;
+  .catch(err => console.error("❌ MongoDB error:", err.message));
