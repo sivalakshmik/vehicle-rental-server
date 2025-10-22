@@ -221,7 +221,7 @@ router.get("/invoice/:paymentId", verifyToken, async (req, res) => {
       .text(`Make & Model: ${vehicle?.make} ${vehicle?.model}`, 60, 310)
       .text(`Year: ${vehicle?.year || "N/A"}`, 60, 325)
       .text(`Type: ${vehicle?.type || "N/A"}`, 60, 340)
-      .text(`Price per Day: ₹${vehicle?.pricePerDay}`, 60, 355);
+      .text(`Price per Day: ${vehicle?.pricePerDay}`, 60, 355);
 
     const days =
       Math.ceil(
@@ -248,8 +248,8 @@ router.get("/invoice/:paymentId", verifyToken, async (req, res) => {
       .stroke()
       .text(`${vehicle.make} ${vehicle.model}`, 70, 502)
       .text(days.toString(), 280, 502)
-      .text(`₹${vehicle.pricePerDay}`, 340, 502)
-      .text(`₹${baseAmount}`, 440, 502);
+      .text(`${vehicle.pricePerDay}`, 340, 502)
+      .text(`${baseAmount}`, 440, 502);
 
     doc
       .rect(60, 520, 480, 25)
@@ -257,7 +257,7 @@ router.get("/invoice/:paymentId", verifyToken, async (req, res) => {
       .text("GST (5%)", 70, 527)
       .text("-", 280, 527)
       .text("-", 340, 527)
-      .text(`₹${tax.toFixed(2)}`, 440, 527);
+      .text(`${tax.toFixed(2)}`, 440, 527);
 
     doc
       .rect(60, 545, 480, 25)
@@ -266,7 +266,7 @@ router.get("/invoice/:paymentId", verifyToken, async (req, res) => {
       .text("Total Payable", 70, 552)
       .text("-", 280, 552)
       .text("-", 340, 552)
-      .text(`₹${totalAmount.toFixed(2)}`, 440, 552);
+      .text(`${totalAmount.toFixed(2)}`, 440, 552);
 
     doc
       .fillColor("#2563eb")
@@ -285,4 +285,5 @@ router.get("/invoice/:paymentId", verifyToken, async (req, res) => {
 });
 
 export default router;
+
 
