@@ -30,28 +30,21 @@ app.use("/api/payments", (req, res, next) => {
 }, paymentRoutes);
 
 
-// ✅ Define allowed origins
-const allowedOrigins = [
-  "https://kvsvehiclerental.netlify.app", // your frontend
-  "http://localhost:3000",                // local dev
-];
-
-// ✅ Apply CORS middleware
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-  })
-);
-
-// ✅ Handle preflight requests safely
-app.options("/*", cors()); // ✅ use "/*" instead of "*" or ".*"
+// ✅ CORS setup
+app.use(cors({
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      "https://kvsvehiclerental.netlify.app",
+      "http://localhost:3000",
+    ];
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+}));
 
 // ✅ Middlewares
 app.use(express.json());
@@ -83,6 +76,7 @@ mongoose
     });
   })
   .catch((err) => console.error("❌ MongoDB connection error:", err.message));
+
 
 
 
