@@ -52,6 +52,9 @@ app.use(
 
 // ✅ Handle preflight requests
 app.options("*", cors());
+app.use(cors({ ... }));
+app.use(express.json());
+app.use("/api/...", yourRoutes);
 
 
 // ✅ Middlewares
@@ -84,6 +87,7 @@ mongoose
     });
   })
   .catch((err) => console.error("❌ MongoDB connection error:", err.message));
+
 
 
 
