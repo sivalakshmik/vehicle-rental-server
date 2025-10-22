@@ -92,25 +92,27 @@ router.post("/create-session", verifyToken, async (req, res) => {
   }
 });
 
-/* -------------------------------------------
- 📦 Stripe Webhook Handler
-------------------------------------------- */
-router.post("/webhook", async (req, res) => {
+// ✅ Export a named handler for webhook use
+export const handleWebhook = async (req, res) => {
+  const Stripe = (await import("stripe")).default;
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2025-08-27.basil",
+  });
+
   const sig = req.headers["stripe-signature"];
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     console.error("❌ Webhook verification failed:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   console.log("📦 Webhook received:", event.type);
+  // Your existing logic for checkout.session.completed etc. remains unchanged.
+  res.status(200).end();
+};
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
@@ -305,6 +307,7 @@ router.get("/invoice/:paymentId", verifyToken, async (req, res) => {
 });
 
 export default router;
+
 
 
 
