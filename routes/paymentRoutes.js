@@ -24,6 +24,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 });
 
 console.log("✅ Stripe initialized");
+
 /* -------------------------------------------
  🎯 Create Stripe Checkout Session
 ------------------------------------------- */
@@ -31,7 +32,6 @@ router.post("/create-session", verifyToken, async (req, res) => {
   const { vehicleId, startDate, endDate, bookingId } = req.body;
 
   try {
-    // 🔍 Check for booking conflicts
     const conflict = await Booking.findOne({
       vehicle: vehicleId,
       startDate: { $lt: new Date(endDate) },
@@ -45,19 +45,16 @@ router.post("/create-session", verifyToken, async (req, res) => {
       });
     }
 
-    // 🚗 Fetch vehicle details
     const vehicle = await Vehicle.findById(vehicleId);
     if (!vehicle) return res.status(404).json({ message: "Vehicle not found" });
 
-    // 💰 Calculate rental amount
     const days = Math.ceil(
       (new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)
     );
     const amount = vehicle.pricePerDay * days * 100;
 
-    // ✅ Prepare metadata
     const metadata = {
-      userId: req.userId, // from verifyToken middleware
+      userId: req.userId,
       vehicleId,
       startDate,
       endDate,
@@ -67,7 +64,6 @@ router.post("/create-session", verifyToken, async (req, res) => {
     console.log("🔐 Authenticated user ID:", req.userId);
     console.log("📦 Sending metadata to Stripe:", metadata);
 
-    // 🧾 Create Stripe session
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       currency: "inr",
@@ -82,7 +78,7 @@ router.post("/create-session", verifyToken, async (req, res) => {
           quantity: 1,
         },
       ],
-      metadata, // ✅ Ensure metadata is passed correctly
+      metadata,
       success_url: `${process.env.CLIENT_URL}/payment-success`,
       cancel_url: `${process.env.CLIENT_URL}/payment-cancelled`,
     });
@@ -95,9 +91,9 @@ router.post("/create-session", verifyToken, async (req, res) => {
   }
 });
 
-
-import mongoose from "mongoose"; // ✅ Required for ObjectId casting
-
+/* -------------------------------------------
+ 📦 Stripe Webhook Handler
+------------------------------------------- */
 router.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
   const sig = req.headers["stripe-signature"];
   let event;
@@ -119,16 +115,13 @@ router.post("/webhook", express.raw({ type: "application/json" }), async (req, r
     const session = event.data.object;
     const { userId, vehicleId, startDate, endDate, bookingId } = session.metadata || {};
 
-    // ✅ Log metadata for debugging
     console.log("📦 Metadata received:", session.metadata);
 
-    // ✅ Guard clause for missing metadata
     if (!userId || !vehicleId) {
       console.error("❌ Missing userId or vehicleId in metadata:", session.metadata);
       return res.status(400).send("Missing required metadata");
     }
 
-    // ✅ Cast to ObjectId
     const userObjectId = mongoose.Types.ObjectId.isValid(userId)
       ? new mongoose.Types.ObjectId(userId)
       : undefined;
@@ -172,7 +165,6 @@ router.post("/webhook", express.raw({ type: "application/json" }), async (req, r
         console.log("✅ Booking created from webhook:", booking._id);
       }
 
-      // 📧 Send confirmation email
       const user = await User.findById(userObjectId);
       const vehicle = await Vehicle.findById(vehicleObjectId);
       if (user && vehicle) {
@@ -203,7 +195,6 @@ router.post("/webhook", express.raw({ type: "application/json" }), async (req, r
 
   res.status(200).end();
 });
-
 /* -------------------------------------------
  🧾 3️⃣ Get User Payments
 ------------------------------------------- */
@@ -312,3 +303,4 @@ router.get("/invoice/:paymentId", verifyToken, async (req, res) => {
 });
 
 export default router;
+
