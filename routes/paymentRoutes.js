@@ -210,9 +210,6 @@ router.get("/my", verifyToken, async (req, res) => {
   }
 });
 
-export default router;
-});
-
 /* -------------------------------------------
  📄 4️⃣ Generate Styled PDF Invoice
 ------------------------------------------- */
@@ -308,6 +305,7 @@ router.get("/invoice/:paymentId", verifyToken, async (req, res) => {
 });
 
 export default router;
+
 
 
 
