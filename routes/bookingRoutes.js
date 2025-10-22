@@ -4,7 +4,7 @@ import Vehicle from "../models/Vehicle.js";
 import User from "../models/User.js";
 import { verifyToken } from "../middleware/authMiddleware.js";
 import { createPendingBooking } from "../utils/bookingService.js";
-import { sendEmail } from "../utils/mailer.js";
+import  sendEmail  from "../utils/mailer.js";
 
 const router = express.Router();
 
@@ -201,3 +201,4 @@ router.get("/vehicle/:vehicleId/booked-dates", async (req, res) => {
 });
 
 export default router;
+
