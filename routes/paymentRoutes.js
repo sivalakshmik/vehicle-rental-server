@@ -94,7 +94,7 @@ router.post("/create-session", verifyToken, async (req, res) => {
 /* -------------------------------------------
  📦 Stripe Webhook Handler
 ------------------------------------------- */
-router.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+router.post("/webhook", async (req, res) => {
   const sig = req.headers["stripe-signature"];
   let event;
 
@@ -110,7 +110,8 @@ router.post("/webhook", express.raw({ type: "application/json" }), async (req, r
   }
 
   console.log("📦 Webhook received:", event.type);
-
+ 
+});
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     const { userId, vehicleId, startDate, endDate, bookingId } = session.metadata || {};
@@ -303,4 +304,5 @@ router.get("/invoice/:paymentId", verifyToken, async (req, res) => {
 });
 
 export default router;
+
 
