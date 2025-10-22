@@ -1,66 +1,39 @@
+// utils/mailer.js
 import dotenv from "dotenv";
-import nodemailer from "nodemailer";
-
-// 🧩 Ensure environment variables are loaded before anything else
+import sgMail from "@sendgrid/mail";
 dotenv.config();
 
-// ✅ Create transporter with Gmail or fallback SMTP
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: false, // true for 465
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
-
-// 🧠 Verify transporter at startup
-transporter.verify((err, success) => {
-  if (err) {
-    console.error("❌ Mailer connection error:", err.message);
-    console.log("⚙️ Debug Info:", {
-      SMTP_USER: process.env.SMTP_USER || "❌ Missing",
-      SMTP_PASS: process.env.SMTP_PASS ? "✅ Loaded" : "❌ Missing",
-    });
-  } else {
-    console.log("✅ Mailer connected successfully");
-  }
-});
-
 /**
- * 📧 Send an email with HTML, text, and optional attachments.
- * @param {Object} options
- * @param {string} options.to - recipient email
- * @param {string} options.subject - email subject
- * @param {string} [options.text] - plain text body
- * @param {string} [options.html] - HTML body
- * @param {Array} [options.attachments] - attachments
+ * Send email using SendGrid API
+ * @param {{ to: string, subject: string, text?: string, html?: string }} options
  */
-export async function sendMail({ to, subject, text, html, attachments }) {
-  try {
-    const msg = {
-      from: process.env.SMTP_FROM || `"Vehicle Rental Pvt. Ltd." <${process.env.SMTP_USER}>`,
-      to,
-      subject,
-      text,
-      html,
-      attachments,
-    };
+export async function sendMail({ to, subject, text = "", html = "" }) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  const from = process.env.SMTP_FROM;
 
-    const info = await transporter.sendMail(msg);
-    console.log(`📨 Email sent successfully → ${to} | Message ID: ${info.messageId}`);
+  if (!apiKey || !from) {
+    console.error("❌ Missing SENDGRID_API_KEY or SMTP_FROM in environment.");
+    return false;
+  }
+
+  sgMail.setApiKey(apiKey);
+
+  const msg = {
+    to,
+    from, // must be verified sender
+    subject,
+    text,
+    html,
+  };
+
+  try {
+    await sgMail.send(msg);
+    console.log("📧 Email sent successfully via SendGrid →", to);
     return true;
-  } catch (error) {
-    console.error("❌ Email send error:", error.message);
-    if (error.response) console.error("📩 SMTP Response:", error.response);
+  } catch (err) {
+    console.error("❌ SendGrid error:", err.response?.body || err.message);
     return false;
   }
 }
 
-// 🔁 Compatibility export
-export const sendEmail = sendMail;
-export default transporter;
+export default sendMail;
