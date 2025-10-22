@@ -23,7 +23,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /* ------------------------------------------------------------------
- 🧠 1️⃣ STRIPE WEBHOOK MUST USE RAW BODY
+ 🧠 1️⃣ STRIPE WEBHOOK — RAW BODY (must come BEFORE express.json)
  ------------------------------------------------------------------ */
 app.post(
   "/api/payments/webhook",
@@ -39,9 +39,16 @@ app.post(
 );
 
 /* ------------------------------------------------------------------
- 🧠 2️⃣ NORMAL ROUTES — USE JSON PARSER
+ 🧠 2️⃣ NORMAL ROUTES — USE JSON PARSER (after webhook)
  ------------------------------------------------------------------ */
-app.use(express.json());
+// ✅ Important: use conditional middleware to avoid JSON parsing for webhooks
+app.use((req, res, next) => {
+  if (req.originalUrl === "/api/payments/webhook") {
+    next(); // Skip express.json for Stripe webhook
+  } else {
+    express.json()(req, res, next);
+  }
+});
 
 /* ------------------------------------------------------------------
  🌐 3️⃣ CORS CONFIGURATION
