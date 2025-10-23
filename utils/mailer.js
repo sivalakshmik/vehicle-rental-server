@@ -1,41 +1,47 @@
+
 import dotenv from "dotenv";
-import Brevo from "@getbrevo/brevo";
+import axios from "axios";
+
 dotenv.config();
 
-// Initialize Brevo
-const apiInstance = new Brevo.TransactionalEmailsApi();
-apiInstance.setApiKey(
-  Brevo.TransactionalEmailsApiApiKeys.apiKey,
-  process.env.BREVO_API_KEY
-);
-
 /**
- * Send email via Brevo
- * @param {Object} options
- * @param {string} options.to - Recipient email
- * @param {string} options.subject - Email subject
- * @param {string} options.html - Email HTML content
+ * Send email using Brevo API
+ * @param {{ to: string, subject: string, html?: string, text?: string }} options
  */
-export async function sendEmail({ to, subject, html }) {
-  const sender = {
-    email: process.env.SENDER_EMAIL || "soniakv.2822@gmail.com",
-    name: process.env.SENDER_NAME || "Vehicle Rental",
-  };
+export async function sendEmail({ to, subject, html = "", text = "" }) {
+  const apiKey = process.env.BREVO_API_KEY;
+  const senderEmail = process.env.SENDER_EMAIL;
+  const senderName = process.env.SENDER_NAME;
 
-  const emailData = {
-    sender,
-    to: [{ email: to }],
-    subject,
-    htmlContent: html,
-  };
+  if (!apiKey || !senderEmail) {
+    console.error("❌ Missing BREVO_API_KEY or SENDER_EMAIL in environment.");
+    return false;
+  }
 
   try {
-    await apiInstance.sendTransacEmail(emailData);
+    const response = await axios.post(
+      "https://api.brevo.com/v3/smtp/email",
+      {
+        sender: { email: senderEmail, name: senderName || "Vehicle Rental" },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+        textContent: text || html.replace(/<[^>]+>/g, ""), // fallback plain text
+      },
+      {
+        headers: {
+          "api-key": apiKey,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
     console.log("📧 Email sent successfully via Brevo →", to);
-    return true;
-  } catch (error) {
-    console.error("❌ Brevo send error:", error.message || error);
+    return response.data;
+  } catch (err) {
+    console.error("❌ Brevo send error:", err.response?.data || err.message);
     return false;
   }
 }
 
+export default sendEmail;
