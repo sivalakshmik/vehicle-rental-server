@@ -1,46 +1,36 @@
 
+import nodemailer from "nodemailer";
 import dotenv from "dotenv";
-import axios from "axios";
 
 dotenv.config();
 
 /**
- * Send email using Brevo API
- * @param {{ to: string, subject: string, html?: string, text?: string }} options
+ * Send transactional emails using Gmail SMTP
  */
-export async function sendEmail({ to, subject, html = "", text = "" }) {
-  const apiKey = process.env.BREVO_API_KEY;
-  const senderEmail = process.env.SENDER_EMAIL;
-  const senderName = process.env.SENDER_NAME;
-
-  if (!apiKey || !senderEmail) {
-    console.error("❌ Missing BREVO_API_KEY or SENDER_EMAIL in environment.");
-    return false;
-  }
-
+export async function sendEmail({ to, subject, html, text }) {
   try {
-    const response = await axios.post(
-      "https://api.brevo.com/v3/smtp/email",
-      {
-        sender: { email: senderEmail, name: senderName || "Vehicle Rental" },
-        to: [{ email: to }],
-        subject,
-        htmlContent: html,
-        textContent: text || html.replace(/<[^>]+>/g, ""), // fallback plain text
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
       },
-      {
-        headers: {
-          "api-key": apiKey,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    });
 
-    console.log("📧 Email sent successfully via Brevo →", to);
-    return response.data;
+    const mailOptions = {
+      from: `${process.env.SENDER_NAME || "Vehicle Rental"} <${process.env.SMTP_USER}>`,
+      to,
+      subject,
+      text: text || html.replace(/<[^>]+>/g, ""),
+      html,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log("📧 Gmail email sent successfully →", to);
+    return info;
   } catch (err) {
-    console.error("❌ Brevo send error:", err.response?.data || err.message);
-    return false;
+    console.error("❌ Gmail send error:", err.message);
+    throw err;
   }
 }
 
