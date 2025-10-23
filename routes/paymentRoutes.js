@@ -9,7 +9,7 @@ import Vehicle from "../models/Vehicle.js";
 import Booking from "../models/Booking.js";
 import Payment from "../models/Payment.js";
 import User from "../models/User.js";
-import sendEmail  from "../utils/mailer.js";
+import {sendEmail}  from "../utils/mailer.js";
 
 dotenv.config();
 
@@ -285,6 +285,7 @@ router.get("/invoice/:paymentId", verifyToken, async (req, res) => {
 });
 
 export default router;
+
 
 
 
