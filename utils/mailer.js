@@ -18,7 +18,7 @@ apiInstance.setApiKey(
  */
 export async function sendEmail({ to, subject, html }) {
   const sender = {
-    email: process.env.SENDER_EMAIL || "noreply@vehiclerental.com",
+    email: process.env.SENDER_EMAIL || "soniakv.2822@gmail.com",
     name: process.env.SENDER_NAME || "Vehicle Rental",
   };
 
@@ -38,3 +38,4 @@ export async function sendEmail({ to, subject, html }) {
     return false;
   }
 }
+
