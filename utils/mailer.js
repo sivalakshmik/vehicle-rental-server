@@ -1,32 +1,35 @@
-import { Resend } from "resend";
+import SibApiV3Sdk from "@sendinblue/client";
 import dotenv from "dotenv";
-
 dotenv.config();
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const brevo = new SibApiV3Sdk.TransactionalEmailsApi();
+brevo.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
 
-export async function sendMail({ to, subject, html }) {
+/**
+ * Send email using Brevo (Sendinblue)
+ * @param {{ to: string, subject: string, html?: string, text?: string }} options
+ */
+export async function sendEmail({ to, subject, html, text }) {
   try {
-    if (!process.env.RESEND_API_KEY) {
-      console.error("❌ Missing RESEND_API_KEY in environment");
-      return;
-    }
+    const sender = {
+      email: process.env.SENDER_EMAIL,
+      name: process.env.SENDER_NAME || "Vehicle Rental",
+    };
 
-    const from = process.env.SMTP_FROM || "Vehicle Rental <noreply@vehiclerental.com>";
-
-    const response = await resend.emails.send({
-      from,
-      to,
+    const mailData = {
+      sender,
+      to: [{ email: to }],
       subject,
-      html,
-    });
+      htmlContent: html || "",
+      textContent: text || "",
+    };
 
-    if (response.error) throw response.error;
-    console.log("📧 Email sent successfully via Resend →", to);
-  } catch (err) {
-    console.error("❌ Resend error:", err);
+    await brevo.sendTransacEmail(mailData);
+
+    console.log("📧 Email sent successfully via Brevo →", to);
+    return true;
+  } catch (error) {
+    console.error("❌ Brevo send error:", error.message || error);
+    return false;
   }
 }
-
-// 👇 Add this line to fix “no default export” error
-export default sendMail;
