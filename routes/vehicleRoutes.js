@@ -13,9 +13,10 @@ router.get("/", async (req, res) => {
 
   const query = {};
 
-  // 🚘 Filter by vehicle type (e.g., Car, Bike, Van)
+  // 🚘 Filter by vehicle type (Car, Bike, Scooty)
   if (type?.trim()) {
-    query.type = { $regex: type.trim(), $options: "i" };
+    // Match scooty, car, bike etc. (case-insensitive)
+    query.type = new RegExp(`^${type.trim()}$`, "i");
   }
 
   // 📍 Filter by location (e.g., Madurai, Chennai)
@@ -30,11 +31,13 @@ router.get("/", async (req, res) => {
     if (maxPrice) query.pricePerDay.$lte = Number(maxPrice);
   }
 
-  // 🔍 Keyword search (make or model)
+  // 🔍 Keyword search (make, model, or type)
   if (keyword?.trim()) {
+    const keywordRegex = { $regex: keyword.trim(), $options: "i" };
     query.$or = [
-      { make: { $regex: keyword.trim(), $options: "i" } },
-      { model: { $regex: keyword.trim(), $options: "i" } },
+      { make: keywordRegex },
+      { model: keywordRegex },
+      { type: keywordRegex }, // ✅ added this for "scooty" search
     ];
   }
 
@@ -56,7 +59,7 @@ router.get("/", async (req, res) => {
       });
     });
 
-    // Step 4️⃣ — Attach bookedDates array to each vehicle
+    // Step 4️⃣ — Attach bookedDates to each vehicle
     const result = vehicles.map((v) => ({
       ...v,
       bookedDates: vehicleBookings[v._id?.toString()] || [],
