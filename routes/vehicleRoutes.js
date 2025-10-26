@@ -1,92 +1,80 @@
+// server/routes/vehicleRoutes.js
 import express from "express";
 import Vehicle from "../models/Vehicle.js";
 import Booking from "../models/Booking.js";
 
 const router = express.Router();
 
-// ✅ GET /api/vehicles — List, Filter & Include Booked Dates
+/* -------------------------------------------
+ 🚗 GET /api/vehicles — Search + Filter + Include Booked Dates
+------------------------------------------- */
 router.get("/", async (req, res) => {
   const { type, location, minPrice, maxPrice, keyword } = req.query;
 
   const query = {};
 
-  if (type?.trim()) query.type = type;
-  if (location?.trim()) query.location = location;
+  // 🚘 Filter by vehicle type (e.g., Car, Bike, Van)
+  if (type?.trim()) {
+    query.type = { $regex: type.trim(), $options: "i" };
+  }
 
-  // 💰 Price range filter
+  // 📍 Filter by location (e.g., Madurai, Chennai)
+  if (location?.trim()) {
+    query.location = { $regex: location.trim(), $options: "i" };
+  }
+
+  // 💰 Filter by price range
   if (minPrice || maxPrice) {
     query.pricePerDay = {};
     if (minPrice) query.pricePerDay.$gte = Number(minPrice);
     if (maxPrice) query.pricePerDay.$lte = Number(maxPrice);
   }
 
-  // 🔍 Keyword search (make/model)
+  // 🔍 Keyword search (make or model)
   if (keyword?.trim()) {
     query.$or = [
-      { make: { $regex: keyword, $options: "i" } },
-      { model: { $regex: keyword, $options: "i" } },
+      { make: { $regex: keyword.trim(), $options: "i" } },
+      { model: { $regex: keyword.trim(), $options: "i" } },
     ];
   }
 
   try {
     // Step 1️⃣ — Get all matching vehicles
-    const vehicles = await Vehicle.find(query).lean();
+    const vehicles = await Vehicle.find(query).sort({ createdAt: -1 }).lean();
 
     // Step 2️⃣ — Fetch active (non-cancelled) bookings
-    const bookings = await Booking.find({
-      status: { $ne: "cancelled" },
-    }).lean();
+    const bookings = await Booking.find({ status: { $ne: "cancelled" } }).lean();
 
     // Step 3️⃣ — Group bookings by vehicle
     const vehicleBookings = {};
     bookings.forEach((b) => {
-      if (!vehicleBookings[b.vehicle]) vehicleBookings[b.vehicle] = [];
-      vehicleBookings[b.vehicle].push({
-        start: b.startDate,
-        end: b.endDate,
+      const id = b.vehicle?.toString();
+      if (!vehicleBookings[id]) vehicleBookings[id] = [];
+      vehicleBookings[id].push({
+        startDate: b.startDate,
+        endDate: b.endDate,
       });
     });
 
-    // Step 4️⃣ — Attach bookedDates to each vehicle
+    // Step 4️⃣ — Attach bookedDates array to each vehicle
     const result = vehicles.map((v) => ({
       ...v,
-      bookedDates: vehicleBookings[v._id] || [],
+      bookedDates: vehicleBookings[v._id?.toString()] || [],
     }));
 
-    res.json(result);
+    res.status(200).json(result);
   } catch (err) {
     console.error("❌ Vehicle fetch error:", err);
-    res.status(500).json({ message: "Server error fetching vehicles" });
+    res.status(500).json({ message: "Failed to fetch vehicles" });
   }
 });
 
-// ✅ POST /api/vehicles — Add a new vehicle (admin use)
+/* -------------------------------------------
+ 🧩 POST /api/vehicles — Add a new vehicle (Admin only)
+------------------------------------------- */
 router.post("/", async (req, res) => {
-  const {
-    make,
-    model,
-    year,
-    type,
-    location,
-    pricePerDay,
-    available,
-    imageUrl,
-    description,
-  } = req.body;
-
   try {
-    const newVehicle = new Vehicle({
-      make,
-      model,
-      year,
-      type,
-      location,
-      pricePerDay,
-      available,
-      imageUrl,
-      description,
-    });
-
+    const newVehicle = new Vehicle(req.body);
     const saved = await newVehicle.save();
     res.status(201).json(saved);
   } catch (err) {
