@@ -14,9 +14,16 @@ router.get("/", async (req, res) => {
   const query = {};
 
 
- // 🚘 Filter by vehicle type (Car, Bike, Scooty, etc.)
+
+// 🚘 Smart filter for vehicle type (Car, Bike, Scooty)
 if (type?.trim()) {
-  query.type = { $regex: `^${type.trim()}$`, $options: "i" };
+  const typeRegexMap = {
+    car: /(car|sedan|suv|jeep|four\s*wheeler)/i,
+    bike: /(bike|motorcycle|two\s*wheeler)/i,
+    scooty: /(scooty|scooter|moped)/i,
+  };
+
+  query.type = typeRegexMap[type.trim().toLowerCase()] || { $regex: type, $options: "i" };
 }
 
 
@@ -88,4 +95,5 @@ router.post("/", async (req, res) => {
 });
 
 export default router;
+
 
