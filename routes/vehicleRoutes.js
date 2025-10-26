@@ -13,11 +13,12 @@ router.get("/", async (req, res) => {
 
   const query = {};
 
-  // 🚘 Filter by vehicle type (Car, Bike, Scooty)
-  if (type?.trim()) {
-    // Match scooty, car, bike etc. (case-insensitive)
-    query.type = new RegExp(`^${type.trim()}$`, "i");
-  }
+
+ // 🚘 Filter by vehicle type (Car, Bike, Scooty, etc.)
+if (type?.trim()) {
+  query.type = { $regex: `^${type.trim()}$`, $options: "i" };
+}
+
 
   // 📍 Filter by location (e.g., Madurai, Chennai)
   if (location?.trim()) {
@@ -87,3 +88,4 @@ router.post("/", async (req, res) => {
 });
 
 export default router;
+
